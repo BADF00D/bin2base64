@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.IO.Compression;
+using System.IO.Enumeration;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,28 +12,54 @@ namespace Bin2Base64
     {
         private static async Task Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            var path = args[0];
 
-            //var converter = new IStreamConverter[] {new BinaryToTextConverter()};
-            var toBase64Converter = new BinaryToTextConverter();
-            var inputPath = @"C:\Git\tests\CustomWpfWindow.7z";
-            var inFileInfo = new FileInfo(inputPath);
-            await using (var fileStream = new FileStream(inputPath + Constants.TextFileExtension, FileMode.Create))
+            if (Directory.Exists(path))
             {
-                await toBase64Converter.Convert(inFileInfo, fileStream, CancellationToken.None);
+                var tempName = Path.GetTempFileName();
+                File.Delete(tempName);
+                ZipFile.CreateFromDirectory(path, tempName);
+
+                var toBase64Converter = new BinaryToTextConverter();
+                await using var output = new FileStream(path + Constants.ZipTextFileExtension, FileMode.Create);
+                await toBase64Converter.Convert(new FileInfo(tempName), output, CancellationToken.None);
+                File.Delete(tempName);
+            }else if (File.Exists(path))
+            {
+                var toBase64Converter = new BinaryToTextConverter();
+                var toBinaryConverter = new TextToBinaryConverter();
+                var file = new FileInfo(path);
+                if (file.Extension == Constants.TextFileExtension)
+                {
+                    var newFileName = path.Substring(0, path.Length - Constants.TextFileExtension.Length);
+                    await using var output = new FileStream(newFileName, FileMode.Create);
+                    await toBinaryConverter.Convert(file, output, CancellationToken.None);
+                }else if (file.Extension == Constants.ZipTextFileExtension)
+                {
+                    var reconstructedDirectoryName = path.Substring(0, path.Length - Constants.ZipTextFileExtension.Length);
+                    var tempFile = Path.GetTempFileName();
+                    await using var output = new FileStream(tempFile, FileMode.Open);
+                    await toBinaryConverter.Convert(file, output, CancellationToken.None);
+                    ZipFile.ExtractToDirectory(tempFile, reconstructedDirectoryName);
+                }
+                else
+                {
+                    await using var output = new FileStream(file + Constants.TextFileExtension, FileMode.Create);
+                    await toBase64Converter.Convert(file, output, CancellationToken.None);
+                }
             }
-
-            var toBinConverter = new TextToBinaryConverter();
-
-            var outFileInfo = new FileInfo(inputPath + Constants.TextFileExtension);
-            await using var fileStream2 = new FileStream(inputPath + Constants.TextFileExtension + ".7z", FileMode.Create);
-            await toBinConverter.Convert(outFileInfo, fileStream2, CancellationToken.None);
+            else
+            {
+                Console.WriteLine("Expect first argument to be a path to an existing file or folder");
+                Console.ReadKey();
+            }
         }
     }
 
     public static class Constants
     {
         public const string TextFileExtension = ".txt";
+        public const string ZipTextFileExtension = ".ziptxt";
     }
 
     internal interface IStreamConverter
@@ -72,7 +100,7 @@ namespace Bin2Base64
         public bool CanConvert(FileSystemInfo fileOrFolder)
         {
             return fileOrFolder.Exists && fileOrFolder is FileInfo &&
-                   fileOrFolder.Extension == Constants.TextFileExtension;
+                   (fileOrFolder.Extension == Constants.TextFileExtension || fileOrFolder.Extension == Constants.ZipTextFileExtension);
         }
 
         public async Task Convert(FileSystemInfo fileOrFolder, Stream output, CancellationToken cancelToken)
