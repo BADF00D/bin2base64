@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Bin2Base64": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\Git\\Bayer\\TimelineMockup\""
+    }
+  }
+}

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.IO.Compression;
-using System.IO.Enumeration;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,7 +20,7 @@ namespace Bin2Base64
                 ZipFile.CreateFromDirectory(path, tempName);
 
                 var toBase64Converter = new BinaryToTextConverter();
-                await using var output = new FileStream(path + Constants.ZipTextFileExtension, FileMode.Create);
+                using var output = new FileStream(path + Constants.ZipTextFileExtension, FileMode.Create);
                 await toBase64Converter.Convert(new FileInfo(tempName), output, CancellationToken.None);
                 File.Delete(tempName);
             }else if (File.Exists(path))
@@ -32,19 +31,19 @@ namespace Bin2Base64
                 if (file.Extension == Constants.TextFileExtension)
                 {
                     var newFileName = path.Substring(0, path.Length - Constants.TextFileExtension.Length);
-                    await using var output = new FileStream(newFileName, FileMode.Create);
+                    using var output = new FileStream(newFileName, FileMode.Create);
                     await toBinaryConverter.Convert(file, output, CancellationToken.None);
                 }else if (file.Extension == Constants.ZipTextFileExtension)
                 {
                     var reconstructedDirectoryName = path.Substring(0, path.Length - Constants.ZipTextFileExtension.Length);
                     var tempFile = Path.GetTempFileName();
-                    await using var output = new FileStream(tempFile, FileMode.Open);
+                    using var output = new FileStream(tempFile, FileMode.Open);
                     await toBinaryConverter.Convert(file, output, CancellationToken.None);
                     ZipFile.ExtractToDirectory(tempFile, reconstructedDirectoryName);
                 }
                 else
                 {
-                    await using var output = new FileStream(file + Constants.TextFileExtension, FileMode.Create);
+                    using var output = new FileStream(file + Constants.TextFileExtension, FileMode.Create);
                     await toBase64Converter.Convert(file, output, CancellationToken.None);
                 }
             }
@@ -80,8 +79,8 @@ namespace Bin2Base64
         {
             if (!CanConvert(fileOrFolder)) throw new ArgumentException("CanConvert failed", nameof(fileOrFolder));
 
-            await using var inputStream = new FileStream(fileOrFolder.FullName, FileMode.Open);
-            await using var outputWriter = new StreamWriter(output, Encoding.UTF8, 1024, true);
+            using var inputStream = new FileStream(fileOrFolder.FullName, FileMode.Open);
+            using var outputWriter = new StreamWriter(output, Encoding.UTF8, 1024, true);
 
             var buffer = new byte[1024];
             while (true)
@@ -107,7 +106,7 @@ namespace Bin2Base64
         {
             if (!CanConvert(fileOrFolder)) throw new ArgumentException("CanConvert failed", nameof(fileOrFolder));
 
-            await using var inputStream = new FileStream(fileOrFolder.FullName, FileMode.Open);
+            using var inputStream = new FileStream(fileOrFolder.FullName, FileMode.Open);
             using var inputReader = new StreamReader(inputStream, Encoding.UTF8, true, 1024, true);
 
             var buffer = new byte[1024];
